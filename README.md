@@ -2,6 +2,8 @@
 
 A lightweight, always-on-top Windows overlay that shows system metrics and the status of tasks run by Claude Code, in one small window you can keep over other apps.
 
+▶️ [Watch the demo (MP4)](docs/overlay.mp4)
+
 > **Status: v0.1.0, first release.** See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the design and roadmap.
 
 ## Features
