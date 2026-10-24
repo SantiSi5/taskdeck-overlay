@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using TaskdeckOverlay.Metrics;
@@ -13,9 +14,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _timer;
     private readonly CpuSampler _cpu = new();
     private readonly MemorySampler _memory = new();
-
-    private int _lastCpu = -1;
-    private int _lastRam = -1;
+    private readonly DiskSampler _disk = new();
+    private readonly NetworkSampler _network = new();
 
     public MainWindow()
     {
@@ -31,12 +31,20 @@ public partial class MainWindow : Window
         Left = area.Right - ActualWidth - 16;
         Top = area.Top + 16;
 
-        _cpu.Sample(); // prime the first reading
+        // Prime the first readings (rate-based samplers need two samples).
+        _cpu.Sample();
+        _disk.Sample();
+        _network.Sample();
+
         Refresh();
         UpdateTimerState();
     }
 
-    private void Window_Closed(object? sender, EventArgs e) => _timer.Stop();
+    private void Window_Closed(object? sender, EventArgs e)
+    {
+        _timer.Stop();
+        _disk.Dispose();
+    }
 
     private void Window_StateChanged(object? sender, EventArgs e) => UpdateTimerState();
 
@@ -61,17 +69,24 @@ public partial class MainWindow : Window
         int cpu = (int)Math.Round(_cpu.Sample());
         int ram = (int)Math.Round(_memory.UsedPercent());
 
-        // Only touch the UI when a value actually changed.
-        if (cpu != _lastCpu)
-        {
-            _lastCpu = cpu;
-            CpuText.Text = $"CPU {cpu,3}%";
-        }
+        SetText(CpuText, $"CPU {cpu,3}%");
+        SetText(RamText, $"RAM {ram,3}%");
 
-        if (ram != _lastRam)
+        var disk = _disk.Sample();
+        SetText(DiskText, disk is { } d
+            ? $"DSK R {Formatting.Rate(d.Read)}  W {Formatting.Rate(d.Write)}"
+            : "DSK N/A");
+
+        var (down, up) = _network.Sample();
+        SetText(NetText, $"NET ↓ {Formatting.Rate(down)}  ↑ {Formatting.Rate(up)}");
+    }
+
+    // Only touch the UI when the text actually changed.
+    private static void SetText(TextBlock block, string text)
+    {
+        if (block.Text != text)
         {
-            _lastRam = ram;
-            RamText.Text = $"RAM {ram,3}%";
+            block.Text = text;
         }
     }
 

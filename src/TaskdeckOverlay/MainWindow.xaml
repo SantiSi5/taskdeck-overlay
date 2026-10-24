@@ -28,6 +28,8 @@
         <StackPanel>
             <TextBlock x:Name="CpuText" Foreground="#E6EDF3" FontFamily="Consolas" FontSize="13" Text="CPU  --%" />
             <TextBlock x:Name="RamText" Foreground="#E6EDF3" FontFamily="Consolas" FontSize="13" Text="RAM  --%" Margin="0,4,0,0" />
+            <TextBlock x:Name="DiskText" Foreground="#E6EDF3" FontFamily="Consolas" FontSize="13" Text="DSK  --" Margin="0,4,0,0" />
+            <TextBlock x:Name="NetText" Foreground="#E6EDF3" FontFamily="Consolas" FontSize="13" Text="NET  --" Margin="0,4,0,0" />
         </StackPanel>
     </Border>
 </Window>
