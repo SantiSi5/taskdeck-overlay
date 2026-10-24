@@ -1,6 +1,8 @@
+using System.Media;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using TaskdeckOverlay.Core;
 using TaskdeckOverlay.Metrics;
@@ -25,10 +27,15 @@ public partial class MainWindow : Window
     private const int MaxTaskRows = 4;
     private const int DefaultPort = 47600;
 
+    private static readonly TimeSpan FlashDuration = TimeSpan.FromSeconds(3);
+
+    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly DispatcherTimer _flashTimer;
     private readonly TaskTracker _tasks = new();
     private HookServer? _hookServer;
     private string? _hookStatus;
 
+    private readonly bool _isAdmin = HardwareSampler.IsAdministrator();
     private HardwareSampler? _hardware;
     private HardwareReading? _lastHardware;
     private int _tick;
@@ -38,14 +45,25 @@ public partial class MainWindow : Window
         InitializeComponent();
         _timer = new DispatcherTimer { Interval = SampleInterval };
         _timer.Tick += (_, _) => Refresh();
+
+        _flashTimer = new DispatcherTimer { Interval = FlashDuration };
+        _flashTimer.Tick += (_, _) =>
+        {
+            _flashTimer.Stop();
+            Chrome.BorderBrush = Brushes.Transparent;
+        };
+
+        Opacity = _settings.Opacity;
+        SensorsItem.IsChecked = _settings.SensorsEnabled;
+        SoundItem.IsChecked = _settings.SoundEnabled;
+
+        // Events come from server threads; marshal to the UI thread.
+        _tasks.StatusChanged += (_, status) => Dispatcher.BeginInvoke(() => Notify(status));
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Start in the top-right corner of the work area.
-        var area = SystemParameters.WorkArea;
-        Left = area.Right - ActualWidth - 16;
-        Top = area.Top + 16;
+        ApplyInitialPosition();
 
         // Prime the first readings (rate-based samplers need two samples).
         _cpu.Sample();
@@ -61,6 +79,8 @@ public partial class MainWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        SaveSettings();
+        _flashTimer.Stop();
         _timer.Stop();
         _disk.Dispose();
         _hardware?.Dispose();
@@ -82,6 +102,64 @@ public partial class MainWindow : Window
         else if (!active && _timer.IsEnabled)
         {
             _timer.Stop();
+        }
+    }
+
+    private void ApplyInitialPosition()
+    {
+        // Reuse the saved position only if it is still on a connected monitor. Checking the
+        // virtual-screen rectangle is not enough: with monitors of different sizes it has
+        // gaps that belong to no screen, where the window would be invisible.
+        if (_settings.Left is { } left && _settings.Top is { } top
+            && IsOnAnyMonitor(left + 20, top + 20))
+        {
+            Left = left;
+            Top = top;
+            return;
+        }
+
+        // Default: top-right corner of the work area.
+        var area = SystemParameters.WorkArea;
+        Left = area.Right - ActualWidth - 16;
+        Top = area.Top + 16;
+    }
+
+    // WPF positions are device-independent units; MonitorFromPoint expects physical pixels.
+    private bool IsOnAnyMonitor(double x, double y)
+    {
+        var toDevice = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice ?? Matrix.Identity;
+        var device = toDevice.Transform(new Point(x, y));
+        var pt = new NativeMethods.POINT { X = (int)device.X, Y = (int)device.Y };
+        return NativeMethods.MonitorFromPoint(pt, NativeMethods.MONITOR_DEFAULTTONULL) != IntPtr.Zero;
+    }
+
+    private void SaveSettings()
+    {
+        _settings.Left = Left;
+        _settings.Top = Top;
+        _settings.Opacity = Opacity;
+        _settings.SensorsEnabled = SensorsItem.IsChecked;
+        _settings.SoundEnabled = SoundItem.IsChecked;
+        _settings.Save();
+    }
+
+    // Visual cue (colored border for a few seconds) plus an optional system sound.
+    private void Notify(AgentTaskStatus status)
+    {
+        (Color color, SystemSound sound) = status switch
+        {
+            AgentTaskStatus.Done => (Color.FromRgb(0x3F, 0xB9, 0x50), SystemSounds.Asterisk),
+            AgentTaskStatus.Waiting => (Color.FromRgb(0xD2, 0x99, 0x22), SystemSounds.Exclamation),
+            _ => (Color.FromRgb(0xF8, 0x51, 0x49), SystemSounds.Hand)
+        };
+
+        Chrome.BorderBrush = new SolidColorBrush(color);
+        _flashTimer.Stop();
+        _flashTimer.Start();
+
+        if (SoundItem.IsChecked)
+        {
+            sound.Play();
         }
     }
 
@@ -166,7 +244,8 @@ public partial class MainWindow : Window
 
         string cpuTemp = _hardware is null
             ? string.Empty
-            : _lastHardware?.CpuTemperature is { } ct ? $"  {ct:0}°C" : "  N/A";
+            : _lastHardware?.CpuTemperature is { } ct ? $"  {ct:0}°C"
+            : _isAdmin ? "  N/A" : "  N/A (needs admin)";
         SetText(CpuText, $"CPU {cpu,3}%{cpuTemp}");
         SetText(RamText, $"RAM {ram,3}%");
 
@@ -224,11 +303,25 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Sensors_Click(object sender, RoutedEventArgs e) => SetSensorsEnabled(SensorsItem.IsChecked);
+    private void Sensors_Click(object sender, RoutedEventArgs e)
+    {
+        SetSensorsEnabled(SensorsItem.IsChecked);
+        SaveSettings();
+    }
 
-    private void OpacityUp_Click(object sender, RoutedEventArgs e) => Opacity = Math.Min(1.0, Opacity + 0.1);
+    private void Sound_Click(object sender, RoutedEventArgs e) => SaveSettings();
 
-    private void OpacityDown_Click(object sender, RoutedEventArgs e) => Opacity = Math.Max(0.3, Opacity - 0.1);
+    private void OpacityUp_Click(object sender, RoutedEventArgs e)
+    {
+        Opacity = Math.Round(Math.Min(1.0, Opacity + 0.1), 1);
+        SaveSettings();
+    }
+
+    private void OpacityDown_Click(object sender, RoutedEventArgs e)
+    {
+        Opacity = Math.Round(Math.Max(0.3, Opacity - 0.1), 1);
+        SaveSettings();
+    }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }

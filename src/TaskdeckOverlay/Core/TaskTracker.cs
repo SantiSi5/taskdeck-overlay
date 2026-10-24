@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace TaskdeckOverlay.Core;
 
 /// <summary>
@@ -14,8 +12,16 @@ public sealed class TaskTracker
     private readonly object _lock = new();
     private readonly Dictionary<string, AgentTask> _tasks = new();
 
+    /// <summary>
+    /// Raised (outside the internal lock, on the calling thread) when a task starts
+    /// waiting for the user, finishes, or fails. Subscribers must marshal to the UI thread.
+    /// </summary>
+    public event Action<string, AgentTaskStatus>? StatusChanged;
+
     public void Apply(string eventName, string sessionId, string? cwd, DateTime now)
     {
+        (string Name, AgentTaskStatus Status)? notify = null;
+
         lock (_lock)
         {
             if (eventName == "SessionEnd")
@@ -68,6 +74,7 @@ public sealed class TaskTracker
                     if (task.Status == AgentTaskStatus.Running)
                     {
                         task.Status = AgentTaskStatus.Waiting;
+                        notify = (task.Name, AgentTaskStatus.Waiting);
                     }
                     break;
                 case "PostToolUse":
@@ -78,14 +85,27 @@ public sealed class TaskTracker
                     }
                     break;
                 case "Stop":
-                    task.Status = AgentTaskStatus.Done;
-                    task.EndedAt ??= now;
+                    if (task.Status != AgentTaskStatus.Done)
+                    {
+                        task.Status = AgentTaskStatus.Done;
+                        task.EndedAt ??= now;
+                        notify = (task.Name, AgentTaskStatus.Done);
+                    }
                     break;
                 case "StopFailure":
-                    task.Status = AgentTaskStatus.Error;
-                    task.EndedAt ??= now;
+                    if (task.Status != AgentTaskStatus.Error)
+                    {
+                        task.Status = AgentTaskStatus.Error;
+                        task.EndedAt ??= now;
+                        notify = (task.Name, AgentTaskStatus.Error);
+                    }
                     break;
             }
+        }
+
+        if (notify is { } n)
+        {
+            StatusChanged?.Invoke(n.Name, n.Status);
         }
     }
 
@@ -121,7 +141,7 @@ public sealed class TaskTracker
     {
         if (!string.IsNullOrWhiteSpace(cwd))
         {
-            string name = Path.GetFileName(cwd.TrimEnd('\\', '/'));
+            string name = System.IO.Path.GetFileName(cwd.TrimEnd('\\', '/'));
             if (!string.IsNullOrWhiteSpace(name))
             {
                 return name;

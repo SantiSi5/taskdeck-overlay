@@ -15,10 +15,11 @@
         StateChanged="Window_StateChanged"
         IsVisibleChanged="Window_IsVisibleChanged">
 
-    <Border Background="#CC12161C" CornerRadius="8" Padding="12,8" MinWidth="300">
+    <Border x:Name="Chrome" Background="#CC12161C" BorderBrush="Transparent" BorderThickness="2" CornerRadius="8" Padding="10,6" MinWidth="300">
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem x:Name="SensorsItem" Header="GPU and temperatures" IsCheckable="True" IsChecked="True" Click="Sensors_Click" />
+                <MenuItem x:Name="SoundItem" Header="Sound on notifications" IsCheckable="True" IsChecked="False" Click="Sound_Click" />
                 <Separator />
                 <MenuItem Header="Opacity: more" Click="OpacityUp_Click" />
                 <MenuItem Header="Opacity: less" Click="OpacityDown_Click" />

@@ -31,7 +31,20 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetSystemTimes(out FILETIME idle, out FILETIME kernel, out FILETIME user);
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    internal const uint MONITOR_DEFAULTTONULL = 0;
+
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX status);
+
+    /// <summary>Returns the monitor containing the point (physical pixels), or zero if none.</summary>
+    [DllImport("user32.dll")]
+    internal static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
 }
