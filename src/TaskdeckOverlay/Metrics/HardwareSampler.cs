@@ -81,7 +81,7 @@ public sealed class HardwareSampler : IDisposable
                         gpuLoad = sensor.Value;
                         break;
                     case (SensorType.Temperature, "GPU Core"):
-                        gpuTemp = sensor.Value;
+                        gpuTemp = IsPlausibleTemperature(sensor.Value) ? sensor.Value : null;
                         break;
                     case (SensorType.SmallData, "GPU Memory Used"):
                         memUsedMb = sensor.Value;
@@ -108,7 +108,7 @@ public sealed class HardwareSampler : IDisposable
             return null;
         }
 
-        var temps = cpu.Sensors.Where(s => s.SensorType == SensorType.Temperature && s.Value.HasValue).ToList();
+        var temps = cpu.Sensors.Where(s => s.SensorType == SensorType.Temperature && IsPlausibleTemperature(s.Value)).ToList();
         if (temps.Count == 0)
         {
             return null;
@@ -122,6 +122,11 @@ public sealed class HardwareSampler : IDisposable
 
         return package?.Value ?? temps.Max(s => s.Value);
     }
+
+    // Without admin rights (or without the low-level driver) some sensors report 0
+    // instead of no value, e.g. "Core (Tctl/Tdie)" on AMD Ryzen. Treat anything outside
+    // a plausible range as "no reading" so the UI shows N/A rather than 0°C.
+    private static bool IsPlausibleTemperature(float? value) => value is > 0 and < 150;
 
     public void Dispose() => _computer?.Close();
 }
