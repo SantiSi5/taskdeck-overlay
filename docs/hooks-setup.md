@@ -23,8 +23,11 @@ The hooks are non-blocking: if the overlay is closed, Claude Code keeps working 
 ## 3. Run the overlay
 
 ```powershell
-dotnet run --project src\TaskdeckOverlay
+dotnet build src\TaskdeckOverlay
+Start-Process src\TaskdeckOverlay\bin\Debug\net8.0-windows\TaskdeckOverlay.exe
 ```
+
+On admin accounts Windows asks for elevation (needed for temperatures), so `dotnet run` from a normal terminal fails with "requires elevation". Use `Start-Process` as above, or run `dotnet run` from an elevated terminal.
 
 The default port is `47600`; set `TASKDECK_PORT` to change it (and update the URL in the hooks).
 

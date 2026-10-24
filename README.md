@@ -10,6 +10,7 @@ A lightweight, always-on-top Windows overlay that shows system metrics and the s
 - Task list for Claude Code sessions with name, status, duration and step progress. See [docs/hooks-setup.md](docs/hooks-setup.md).
 - Visual cue (colored border) when a task finishes, fails or waits for you, with an optional sound.
 - Small, borderless, draggable window with adjustable transparency. Position and preferences are remembered.
+- Tray icon to hide and restore the overlay; while hidden, task events show as a tray notification.
 - Very low resource usage (targets to be measured and published).
 
 ## How task data is collected

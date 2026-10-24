@@ -52,7 +52,8 @@ Principios:
 ## Ventana
 - Siempre encima de otras aplicaciones.
 - Pequeña, arrastrable, sin bordes, con transparencia ajustable.
-- Pendiente de decidir (no elegido aún): click-through, modo compacto/expandido, icono en bandeja.
+- Icono en bandeja: mostrar/ocultar, restablecer posición y salir. Con la ventana oculta, los eventos de tareas se avisan con una notificación de la bandeja.
+- Descartado por ahora: click-through y modo compacto/expandido.
 
 ## Arquitectura (borrador)
 1. `Sources/`: receptores de eventos (hooks vía servidor local).
@@ -74,5 +75,4 @@ Principios:
 
 ## Decisiones pendientes
 - Nombre del proyecto.
-- Comportamiento extra de la ventana (click-through, compacto, bandeja).
-- Cómo se calculará el progreso (según lo que permitan los hooks).
+- Resuelto: el progreso se deriva de los eventos `TaskCreated`/`TaskCompleted` (completadas/totales); sin ellos, solo se muestra el estado.

@@ -24,7 +24,8 @@
                 <MenuItem Header="Opacity: more" Click="OpacityUp_Click" />
                 <MenuItem Header="Opacity: less" Click="OpacityDown_Click" />
                 <Separator />
-                <MenuItem Header="Close" Click="Close_Click" />
+                <MenuItem Header="Hide to tray" Click="Hide_Click" />
+                <MenuItem Header="Exit" Click="Close_Click" />
             </ContextMenu>
         </Border.ContextMenu>
 

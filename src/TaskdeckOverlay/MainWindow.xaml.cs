@@ -31,6 +31,7 @@ public partial class MainWindow : Window
 
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly DispatcherTimer _flashTimer;
+    private readonly TrayIcon _tray;
     private readonly TaskTracker _tasks = new();
     private HookServer? _hookServer;
     private string? _hookStatus;
@@ -58,7 +59,12 @@ public partial class MainWindow : Window
         SoundItem.IsChecked = _settings.SoundEnabled;
 
         // Events come from server threads; marshal to the UI thread.
-        _tasks.StatusChanged += (_, status) => Dispatcher.BeginInvoke(() => Notify(status));
+        _tasks.StatusChanged += (name, status) => Dispatcher.BeginInvoke(() => Notify(name, status));
+
+        _tray = new TrayIcon();
+        _tray.ToggleRequested += ToggleOverlay;
+        _tray.ResetPositionRequested += ResetPosition;
+        _tray.ExitRequested += Close;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -85,11 +91,40 @@ public partial class MainWindow : Window
         _disk.Dispose();
         _hardware?.Dispose();
         _hookServer?.Dispose();
+        _tray.Dispose();
     }
 
     private void Window_StateChanged(object? sender, EventArgs e) => UpdateTimerState();
 
-    private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateTimerState();
+    private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _tray.SetOverlayVisible(IsVisible);
+        UpdateTimerState();
+    }
+
+    private void ToggleOverlay()
+    {
+        if (IsVisible)
+        {
+            Hide();
+            return;
+        }
+
+        Show();
+        Refresh();
+    }
+
+    // Recovery option when the overlay ends up somewhere awkward.
+    private void ResetPosition()
+    {
+        if (!IsVisible)
+        {
+            Show();
+        }
+
+        MoveToDefaultPosition();
+        SaveSettings();
+    }
 
     // Do not sample while the window is hidden or minimized.
     private void UpdateTimerState()
@@ -118,7 +153,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Default: top-right corner of the work area.
+        MoveToDefaultPosition();
+    }
+
+    // Top-right corner of the primary work area.
+    private void MoveToDefaultPosition()
+    {
         var area = SystemParameters.WorkArea;
         Left = area.Right - ActualWidth - 16;
         Top = area.Top + 16;
@@ -144,8 +184,21 @@ public partial class MainWindow : Window
     }
 
     // Visual cue (colored border for a few seconds) plus an optional system sound.
-    private void Notify(AgentTaskStatus status)
+    // While the overlay is hidden the border cannot be seen, so a tray balloon is used instead.
+    private void Notify(string name, AgentTaskStatus status)
     {
+        if (!IsVisible)
+        {
+            string text = status switch
+            {
+                AgentTaskStatus.Done => "Finished",
+                AgentTaskStatus.Waiting => "Waiting for you",
+                _ => "Failed"
+            };
+            _tray.ShowBalloon(name, text);
+            return;
+        }
+
         (Color color, SystemSound sound) = status switch
         {
             AgentTaskStatus.Done => (Color.FromRgb(0x3F, 0xB9, 0x50), SystemSounds.Asterisk),
@@ -322,6 +375,8 @@ public partial class MainWindow : Window
         Opacity = Math.Round(Math.Max(0.3, Opacity - 0.1), 1);
         SaveSettings();
     }
+
+    private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }
