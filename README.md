@@ -18,7 +18,7 @@ The overlay only receives events that the user configures themselves through [Cl
 
 ## Stack
 
-C# / .NET (WPF), [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) for sensors. Reading temperatures requires running as administrator; without it, the app shows "N/A (needs admin)".
+C# / .NET (WPF), [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) for sensors. Reading temperatures requires administrator rights, so on admin accounts the app asks for elevation (UAC) at startup. On standard accounts it runs without elevation and shows "N/A (needs admin)".
 
 ## Roadmap
 
