@@ -10,6 +10,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>TaskdeckOverlay</AssemblyName>
     <RootNamespace>TaskdeckOverlay</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>taskdeck-overlay</Product>
+    <Description>Always-on-top Windows overlay with system metrics and Claude Code task status.</Description>
+    <Copyright>Copyright (c) 2026 SantiSi5</Copyright>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>

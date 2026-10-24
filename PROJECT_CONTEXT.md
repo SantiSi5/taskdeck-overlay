@@ -48,6 +48,7 @@ Principios:
 - Activar solo los sensores necesarios en LibreHardwareMonitor (cada tipo de hardware habilitado cuesta).
 - Sin animaciones continuas ni redibujado innecesario; actualizar la interfaz solo cuando cambie un valor.
 - Medir con el Administrador de tareas y un perfilador antes de cada release, y registrar los números en el README.
+- Medición v0.1.0 (`scripts/measure.ps1`, como admin, sensores activos): CPU 0,09 % de media (cumple). Memoria privada ~103 MB (no cumple "decenas de MB"): ~55 WPF/app, ~25 sensores de GPU, ~14 driver de temperatura, ~8 contadores de disco. Desactivar el GC concurrente no la reduce. Pendiente evaluar si merece la pena bajarla.
 
 ## Ventana
 - Siempre encima de otras aplicaciones.
