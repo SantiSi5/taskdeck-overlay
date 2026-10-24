@@ -11,11 +11,18 @@ public partial class MainWindow : Window
     // Slow sampling keeps CPU use of the overlay itself close to zero.
     private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(1);
 
+    // Hardware sensors are heavier to read, so they are sampled every N ticks.
+    private const int HardwareEveryTicks = 2;
+
     private readonly DispatcherTimer _timer;
     private readonly CpuSampler _cpu = new();
     private readonly MemorySampler _memory = new();
     private readonly DiskSampler _disk = new();
     private readonly NetworkSampler _network = new();
+
+    private HardwareSampler? _hardware;
+    private HardwareReading? _lastHardware;
+    private int _tick;
 
     public MainWindow()
     {
@@ -36,6 +43,8 @@ public partial class MainWindow : Window
         _disk.Sample();
         _network.Sample();
 
+        SetSensorsEnabled(SensorsItem.IsChecked);
+
         Refresh();
         UpdateTimerState();
     }
@@ -44,6 +53,7 @@ public partial class MainWindow : Window
     {
         _timer.Stop();
         _disk.Dispose();
+        _hardware?.Dispose();
     }
 
     private void Window_StateChanged(object? sender, EventArgs e) => UpdateTimerState();
@@ -64,13 +74,39 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SetSensorsEnabled(bool enabled)
+    {
+        _hardware?.Dispose();
+        _hardware = null;
+        _lastHardware = null;
+
+        GpuText.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+
+        if (enabled)
+        {
+            _hardware = new HardwareSampler();
+            _tick = 0;
+        }
+    }
+
     private void Refresh()
     {
         int cpu = (int)Math.Round(_cpu.Sample());
         int ram = (int)Math.Round(_memory.UsedPercent());
 
-        SetText(CpuText, $"CPU {cpu,3}%");
+        if (_hardware is not null && _tick++ % HardwareEveryTicks == 0)
+        {
+            _lastHardware = _hardware.Sample();
+        }
+
+        string cpuTemp = _lastHardware?.CpuTemperature is { } ct ? $"  {ct:0}°C" : string.Empty;
+        SetText(CpuText, $"CPU {cpu,3}%{cpuTemp}");
         SetText(RamText, $"RAM {ram,3}%");
+
+        if (_hardware is not null)
+        {
+            SetText(GpuText, FormatGpu(_hardware, _lastHardware));
+        }
 
         var disk = _disk.Sample();
         SetText(DiskText, disk is { } d
@@ -79,6 +115,27 @@ public partial class MainWindow : Window
 
         var (down, up) = _network.Sample();
         SetText(NetText, $"NET ↓ {Formatting.Rate(down)}  ↑ {Formatting.Rate(up)}");
+    }
+
+    private static string FormatGpu(HardwareSampler sampler, HardwareReading? reading)
+    {
+        if (!sampler.Available || reading is null || reading.GpuLoad is null)
+        {
+            return "GPU N/A";
+        }
+
+        string text = $"GPU {reading.GpuLoad:0}%";
+        if (reading.GpuTemperature is { } t)
+        {
+            text += $"  {t:0}°C";
+        }
+
+        if (reading.GpuMemoryUsedGb is { } used && reading.GpuMemoryTotalGb is { } total)
+        {
+            text += $"  {used:0.0}/{total:0.0} GB";
+        }
+
+        return text;
     }
 
     // Only touch the UI when the text actually changed.
@@ -97,6 +154,8 @@ public partial class MainWindow : Window
             DragMove();
         }
     }
+
+    private void Sensors_Click(object sender, RoutedEventArgs e) => SetSensorsEnabled(SensorsItem.IsChecked);
 
     private void OpacityUp_Click(object sender, RoutedEventArgs e) => Opacity = Math.Min(1.0, Opacity + 0.1);
 
