@@ -1,0 +1,140 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47600/event",
+            "headers": {
+              "Authorization": "Bearer $TASKDECK_TOKEN"
+            },
+            "allowedEnvVars": [
+              "TASKDECK_TOKEN"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

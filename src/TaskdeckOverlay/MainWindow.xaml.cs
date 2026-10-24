@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using TaskdeckOverlay.Core;
 using TaskdeckOverlay.Metrics;
+using TaskdeckOverlay.Sources;
 
 namespace TaskdeckOverlay;
 
@@ -19,6 +21,13 @@ public partial class MainWindow : Window
     private readonly MemorySampler _memory = new();
     private readonly DiskSampler _disk = new();
     private readonly NetworkSampler _network = new();
+
+    private const int MaxTaskRows = 4;
+    private const int DefaultPort = 47600;
+
+    private readonly TaskTracker _tasks = new();
+    private HookServer? _hookServer;
+    private string? _hookStatus;
 
     private HardwareSampler? _hardware;
     private HardwareReading? _lastHardware;
@@ -44,6 +53,7 @@ public partial class MainWindow : Window
         _network.Sample();
 
         SetSensorsEnabled(SensorsItem.IsChecked);
+        StartHookServer();
 
         Refresh();
         UpdateTimerState();
@@ -54,6 +64,7 @@ public partial class MainWindow : Window
         _timer.Stop();
         _disk.Dispose();
         _hardware?.Dispose();
+        _hookServer?.Dispose();
     }
 
     private void Window_StateChanged(object? sender, EventArgs e) => UpdateTimerState();
@@ -72,6 +83,60 @@ public partial class MainWindow : Window
         {
             _timer.Stop();
         }
+    }
+
+    private void StartHookServer()
+    {
+        string? token = Environment.GetEnvironmentVariable("TASKDECK_TOKEN");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _hookStatus = "set TASKDECK_TOKEN (see docs)";
+            return;
+        }
+
+        int port = int.TryParse(Environment.GetEnvironmentVariable("TASKDECK_PORT"), out var p) ? p : DefaultPort;
+        _hookServer = new HookServer(_tasks, port, token);
+        _hookServer.Start();
+
+        if (!_hookServer.Running)
+        {
+            _hookStatus = _hookServer.Error;
+        }
+    }
+
+    private string FormatTasks()
+    {
+        if (_hookStatus is not null)
+        {
+            return $"TASKS  {_hookStatus}";
+        }
+
+        var rows = _tasks.Snapshot(DateTime.UtcNow, MaxTaskRows);
+        if (rows.Count == 0)
+        {
+            return "TASKS  idle";
+        }
+
+        return string.Join(Environment.NewLine, rows.Select(FormatTaskRow));
+    }
+
+    private static string FormatTaskRow(AgentTaskSnapshot t)
+    {
+        string label = t.Status switch
+        {
+            AgentTaskStatus.Running => "RUN ",
+            AgentTaskStatus.Waiting => "WAIT",
+            AgentTaskStatus.Done => "DONE",
+            _ => "ERR "
+        };
+
+        string name = t.Name.Length > 14 ? t.Name[..13] + "…" : t.Name;
+        string time = t.Elapsed.TotalHours >= 1
+            ? $"{(int)t.Elapsed.TotalHours}:{t.Elapsed.Minutes:00}:{t.Elapsed.Seconds:00}"
+            : $"{t.Elapsed.Minutes}:{t.Elapsed.Seconds:00}";
+        string progress = t.Total > 0 ? $"  {t.Completed}/{t.Total}" : string.Empty;
+
+        return $"{label} {name,-14} {time,7}{progress}";
     }
 
     private void SetSensorsEnabled(bool enabled)
@@ -99,7 +164,9 @@ public partial class MainWindow : Window
             _lastHardware = _hardware.Sample();
         }
 
-        string cpuTemp = _lastHardware?.CpuTemperature is { } ct ? $"  {ct:0}°C" : string.Empty;
+        string cpuTemp = _hardware is null
+            ? string.Empty
+            : _lastHardware?.CpuTemperature is { } ct ? $"  {ct:0}°C" : "  N/A";
         SetText(CpuText, $"CPU {cpu,3}%{cpuTemp}");
         SetText(RamText, $"RAM {ram,3}%");
 
@@ -115,6 +182,8 @@ public partial class MainWindow : Window
 
         var (down, up) = _network.Sample();
         SetText(NetText, $"NET ↓ {Formatting.Rate(down)}  ↑ {Formatting.Rate(up)}");
+
+        SetText(TasksText, FormatTasks());
     }
 
     private static string FormatGpu(HardwareSampler sampler, HardwareReading? reading)
